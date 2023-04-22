@@ -1,7 +1,7 @@
 ---
 title: 'PG11: A Crash Course in Microbiome Analysis'
 author: "Christopher A. Brown"
-date: "April 2, 2023 (updated)"
+date: "April 22, 2023 (updated)"
 output:
   html_document:
     code_folding: show
@@ -57,7 +57,7 @@ We will be using 16S data resulting from mothur processing and metadata that was
 ## 2.1 Library Load  
 Before we begin bringing in the data to begin our analysis, we need to load the libraries that we'll use. Libraries contain additional code (primarily in the form of functions) and/or data that extend R's base functionality. A good practice is to keep a code chunk near the top of your script that contains all the libraries that are utilized in the analysis, so it's easy to keep track of all of the dependencies that your code has.  
 
-```{r libraries, message=FALSE}
+```{r load_libraries, message=FALSE}
 # This section contains typical libraries used in these analyses
 
 # I. universal data wrangling and visualization
@@ -65,7 +65,7 @@ library(tidyverse)      # ggplot2, dplyr, purrr, forcats, stringr... and other p
 
 # II. machine learning & analysis packages
 library(vegan)          # decostand(), metaMDS(), scores(), rda(), ordispider(), adonis()
-# library(mvabund)        # mvabund(), manyglm() # This line can be uncommented when using mvabund as part of the 16S analysis.
+library(mvabund)        # mvabund(), manyglm() # This line can be uncommented when using mvabund as part of the 16S analysis.
 library(randomForest)   # randomForest()
 
 # III. formatting, plotting
@@ -125,7 +125,7 @@ otu_good_taxonomy # Examine the taxonomy dataframe. The first 10 OTUs coincide w
 ```
 
 ## 2.3 Metadata  
-In order to aid in dividing our samples into groupings, we'll also need metadata or environmental data. Here we illustrate how that can be done.  
+In order to group our samples by factors of interest, we'll also need metadata or environmental data. Here we illustrate how that can be done.  
 
 ```{r metadata_wrangling}
 # In this section, we'll load in metadata/environmental data, and/or create it
@@ -176,10 +176,10 @@ otu_df <- data.frame(meta_df, decostand(otu_good, "total") * 100, stringsAsFacto
 
 Here is a glimpse of the metadata, done by randomly sampling 10 rows:  
 
-```{r view_meta}
-# The following lines of code randomly sample and display 10 rows from the metadata dataframe
+```{r view_metadata_sample}
+# The following code establishes a seed for reproducibility, then randomly samples and displays 10 rows from the metadata dataframe
 set.seed(2358)
-kable(dplyr::sample_n(meta_df, 10), caption = "Metadata, 10 randomly sampled rows", align = "l")
+dplyr::sample_n(meta_df, 10)
 ```
 
 ## 2.4 Color Palette Preparation  
@@ -240,13 +240,13 @@ ggplot(avg_abs_df, aes(x = Type, y = mean_DNA_copies, fill = Type)) + # This bri
 There are several tools we can use to compare the makeup of microbial communities.  
 
 ## 4.1 Visualization techniques  
-In this subsection we will explore visualization methods including PCA ordinations, biplots, and rank abundance plots (ordered bar charts)  
+In this subsection we will explore visualization methods including PCA ordinations, biplots, and rank abundance plots (ordered bar charts).  
 
 ### 4.1.1 PCA Ordination  
 As a first step, we need to create a PCA model using only the data needed to make our comparison of interest.  
 
 #### 4.1.1.a Lung Tissue vs Negative Controls  
-It's important to compare the distribution of bacteria present in specimens and negative controls to gauge possible contamination.  
+It's also important to compare the distribution of bacteria present in specimens and negative controls to gauge possible contamination.  
 
 ```{r prep_pca_con_lung}
 # Filter data to retain controls and lung tissue only
@@ -257,8 +257,8 @@ rownames(con_lung_df) <- con_lung_df$specimen
 
 # PCA of all negative controls + lung tissue
 # Keep only the rows of interest for unstandardized data.
-pca_df <- otu_good[con_lung_df$specimen, ]
-otu_con_lung_hel <- decostand(pca_df, "hellinger") # Standardize: use OTU columns only
+pca_con_lung_mat <- otu_good[con_lung_df$specimen, ]
+otu_con_lung_hel <- decostand(pca_con_lung_mat, "hellinger") # Standardize: use OTU columns only
 otu_con_lung_pca <- rda(otu_con_lung_hel)
 
 # summary() produces a list which is rather messy to print out all at once. Let's just examine the importance of the principal components by accessing $cont
@@ -310,7 +310,7 @@ ordispider(otu_con_lung_pca, con_lung_df$reagent_tissue, label = TRUE) # Draw li
 legend("topright", levels(con_lung_df$reagent_tissue), pch = 19, col = pcapal, title = "Type") # Format and add details to legends
 ```
 
-`vegan` also supports additional ordinations such as ellipses. Simply adding an `ordiellipse` call with a color parameter (`col`) will give us the following plot. Although other plot customizations could be made, this is where we'll stop for the purposes of this example.
+`vegan` also supports additional ordinations such as ellipses. Simply adding an `ordiellipse` call with a color parameter (`col`) will give us the following plot. Although other plot customizations could be made, this is where we'll stop for this example.
 
 ```{r ellipse_con_lung, fig.height=10, fig.width=10}
 # This is very similar to the previous ordination except that we're drawing ellipses rather than lines connecting the points to the centroids.
@@ -322,9 +322,9 @@ legend("topright", levels(con_lung_df$reagent_tissue), pch = 19, col = pcapal, t
 ```
 
 #### 4.1.1.b Biplot  
-A biplot can help us understand which microbial features may be more associated with certain specimens or specimen groups.  
+A biplot can help us understand which microbial features may be more associated with certain specimens, specimen groups, or principal components.  
 
-```{r biplot_con_lung, fig.height=10, fig.width=10}
+```{r biplot_con_lung, fig.height=10, fig.width=10, warning=FALSE}
 # Consider whether rownames should be shown, if so they may need to be truncated for visibility
 
 # biplot(otu_con_lung_pca, type = "t") # This will result in a lot of warnings, and though it generates the plot it's not recommended
@@ -349,7 +349,7 @@ legend("topright", levels(con_lung_df$reagent_tissue), pch = 19, col = pcapal[c(
 ```
 
 #### 4.1.1.c Lung Tissue: Charles River vs Jackson Labs  
-In this experiment, we sought to compare murine specimens from Charles River and Jackson Labs.    
+In this experiment, we compared murine specimens from Charles River and Jackson Labs.    
 
 ```{r prep_pca_lung}
 # Filter data to retain lung tissue only
@@ -359,8 +359,8 @@ rownames(otu_lung) <- otu_lung$specimen
 
 # PCA of lung tissue specimens
 # Keep only the rows of interest for unstandardized data.
-pca_df <- otu_good[otu_lung$specimen, ]
-otu_lung_hel <- decostand(pca_df, "hellinger") # Standardize use OTU columns only
+pca_lung_mat <- otu_good[otu_lung$specimen, ]
+otu_lung_hel <- decostand(pca_lung_mat, "hellinger") # Standardize use OTU columns only
 otu_lung_pca <- rda(otu_lung_hel)
 
 # summary() produces a list which is rather messy to print out all at once. Let's just examine the importance of the principal components by accessing $cont
@@ -379,7 +379,7 @@ legend("topright", levels(otu_lung$vendor), pch = 19, col = pcapal, title = "Ven
 #### 4.1.1.d Biplot  
 Next, we'll examine another biplot.  
 
-```{r biplot_lung, fig.height=10, fig.width=10}
+```{r biplot_lung, fig.height=10, fig.width=10, warning=FALSE}
 # Consider whether rownames should be shown, if so they may need to be truncated for visibility
 
 # biplot(otu_lung_pca, type = "t") # This will result in a lot of warnings, and though it generates the plot it's not recommended
@@ -391,7 +391,7 @@ Next, we'll examine another biplot.
 biplot_results <- quiet_biplot(otu_lung_pca, type = "t")
 
 # example for replacing specimen labels with CR or JL
-#  biplot(prcomp(otu_lung_hel), xlabs=ifelse(str_detect(lung_df$vendor, "Charles_River"), "CR", "JL")) # arrow.len = 0 will also remove warnings, at the cost of losing the arrowhead
+# biplot(prcomp(otu_lung_hel), xlabs=ifelse(str_detect(otu_lung$vendor, "Charles_River"), "CR", "JL")) # arrow.len = 0 will also remove warnings, at the cost of losing the arrowhead
 ```
 
 ### 4.1.2 Rank Abundance  
@@ -570,13 +570,14 @@ See Supplemental (9.1.2) for two approaches of constructing heap maps using lung
 ## 4.2 Hypothesis testing  
 Next we'll explore how to conduct significance testing.  
 
-### 4.2.1 PERMANOVA (adonis)  
-The following is an example of a PERMANOVA implementation using `vegan::adonis()`.  
+### 4.2.1 PERMANOVA (adonis2)  
+The following is an example of a PERMANOVA implementation using `vegan::adonis2()`.  
 
 ```{r adonis}
-# Permanova
+# PERMANOVA
 set.seed(8947) # setting a seed allows for reproducibility. Both of these lines need to be run together for it to work.
-adonis(otu_lung_hel~otu_lung$vendor, method="euclidean", permutations = 10000) # 9.999e-05 ***
+# adonis(otu_lung_hel~otu_lung$vendor, method="euclidean", permutations = 10000)$aov.tab # 9.999e-05 *** # Note that adonis() will soon be deprecated
+adonis2(otu_lung_hel~otu_lung$vendor, method="euclidean", permutations = 10000) # 9.999e-05 ***
 # The left hand side of the formula is the transformed data, and the right hand side is a vector (column) container the group identifiers of interest.
 ```
 
@@ -594,18 +595,18 @@ Because this may take some time to finish (about 4.5 minutes on a powerful machi
 # 
 # plot(otu_ven_many) # Residual plot
 # otu_mva_results$table # Signif
-# 
-# # Example output
-# # Analysis of Deviance Table
-# #
-# # Model: manyglm(formula = otu_mva ~ otu_lung$vendor)
-# #
-# # Multivariate test:
-# #                 Res.Df Df.diff   Dev Pr(>Dev)
-# # (Intercept)         39
-# # otu_lung$vendor     38       1 797.9    0.001 ***
-# # ---
-# # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+# Example output
+# Analysis of Deviance Table
+#
+# Model: manyglm(formula = otu_mva ~ otu_lung$vendor)
+#
+# Multivariate test:
+#                 Res.Df Df.diff   Dev Pr(>Dev)
+# (Intercept)         39
+# otu_lung$vendor     38       1 797.9    0.001 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 ```
 
 ### 4.2.3 constrained ordination  
@@ -637,6 +638,7 @@ While we could make use of our previous mvabund results and examine whether ther
 # 
 # # label OTUS - Note that the OTU column is not a factor in this case
 # otu_ven_sigpvals$OTU <- fct_inorder(paste0(otu_good_taxonomy[otu_ven_sigpvals$OTU, ]$Genus, " (", otu_ven_sigpvals$OTU, ")"))
+# otu_ven_sigpvals
 ```
 
 Here is an example of formatting a dataframe (in this case containing pvalues) for display in a report. See Section VII for additional details related to reporting.  
@@ -645,6 +647,8 @@ Here is an example of formatting a dataframe (in this case containing pvalues) f
 # Note that this is an example constructed for illustration purposes only
 mva_sigpvals <- data.frame(Family = c("Lachnospiraceae", "Erysipelotrichaceae", "Porphyromonadaceae", "Clostridiaceae_1", "Streptococcaceae", "Lactobacillaceae"), uni_p = c(0.001, 0.003, 0.015, 0.016, 0.017, 0.017))
 knitr::kable(mva_sigpvals, caption = "Vendors, Significant OTUs (.05)", align = "l") # Check out ?kable for further specifications.
+
+# mva_sigpvals # default RStudio output
 
 # # This example would use the output from previous code chunk rather than our arbitrary dataframe
 # knitr::kable(otu_ven_sigpvals, caption = "Vendors, Significant OTUs (.05)", align = "l")
@@ -666,7 +670,7 @@ fam_df <- otu_df %>%
   dplyr::select(specimen, reagent_tissue:IL1a, everything()) # Pull metadata columns to the front, all Family columns follow afterwards
 ```
 
-Next, we'll run a basic randomForest.  
+Next, we'll run a basic `randomForest`.  
 
 ```{r randomForest, fig.height=8, fig.width=10, cache = TRUE}
 # For lung specimens, retain only vendor & OTU columns
@@ -676,7 +680,8 @@ rf_df <- dplyr::filter(fam_df, tissue_type == "Lung") %>%
   
 a <- Sys.time()
 set.seed(3462)
-rf_vendors <- randomForest(vendor ~ ., data = rf_df, importance = TRUE) # Setting the importance parameter to TRUE allows us to obtain the variable importance info we're after.
+# Setting the importance parameter to TRUE allows us to obtain the variable importance info we're interested in.
+rf_vendors <- randomForest(vendor ~ ., data = rf_df, importance = TRUE) 
 b <- Sys.time()
 b-a
 
