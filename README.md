@@ -1,8 +1,8 @@
 
 <center>
 
-![ATS2020](images/ats-2023-logo.png) ![Dickson
-Lab](images/dickson_lab_logo.png)
+![ATS2020](images/ats-2023-logo.png)
+<img src="images/dickson_lab_logo.png" height="170">
 
 </center>
 
