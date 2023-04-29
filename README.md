@@ -52,6 +52,9 @@ RStudio Desktop if a prior installation exists.
 Next, the course materials need to be acquired and loaded. First, locate
 the green **Code** dropdown button at the top right of this page. After
 clicking this, find the **download ZIP** option on the **Local** tab.
+Alternatively, navigate to
+<https://github.com/cb-42/ATS2023_PG11/archive/refs/heads/main.zip> to
+download the materials.
 
 ![Knit](images/repo_download.png)
 
@@ -76,9 +79,9 @@ directly interact with is **PG11_Lung_Microbiome_Tutorial.Rmd**. You can
 explore at your own pace, either by reviewing the code and running it
 chunk by chunk, or by creating the report for a more guided experience
 (see [Step
-VI](https://github.com/cb-42/ATS2023_PG11#vi-knit-the-tutorial-optional--10-minutes)).
+VI](https://github.com/cb-42/ATS2023_PG11#vi-knit-the-tutorial)).
 
-## IV. Install R Packages and Dependencies (\< 10 minutes)
+## IV. Install R Packages and Dependencies
 
 There are various ways to install the necessary R packages, but the
 easiest is to simply click **Install** on the pop-up that appears after
@@ -98,7 +101,9 @@ name, then select **Install**.
 
 ![Knit](images/install_packages_3.png)
 
-## V. Introduction to R (optional: 90-120 minutes)
+## V. Introduction to R
+
+(optional: 90-120 minutes)
 
 It would also be highly beneficial to be familiar with the basics of R
 programming prior beginning, though it is not required. A great resource
@@ -106,7 +111,7 @@ is [R for Data Science](https://r4ds.had.co.nz/). Reading chapters 1
 through 5 will familiarize you with the R design philosophy and syntax
 you’ll see during the hands-on presentation.
 
-## VI. Knit the Tutorial (optional: \< 10 minutes)
+## VI. Knit the Tutorial
 
 Finally, the .Rmd file included with these materials can be assembled
 into an HTML report (by default: PG11_Lung_Microbiome_Tutorial.html) by
