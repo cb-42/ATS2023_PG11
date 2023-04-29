@@ -24,11 +24,21 @@ to complete these preparatory tasks.
 
 ## I. R
 
-First you’ll need to download and install R. R can be acquired directly
-from [CRAN](https://cran.r-project.org/). If R is already installed, we
-recommend checking the version, and updating to the current version
-(4.2.3). You can check your R version by entering `getRversion()` in the
-R console.
+First you’ll need to download and install R (version 4.3.0). R can be
+acquired directly from [CRAN](https://cran.r-project.org/), though
+you’ll need to select the appropriate link for your operating system. If
+R is already installed, we recommend checking the version and updating
+to the current version (4.3.0) if necessary. You can check your R
+version by entering `getRversion()` in the R console.
+
+For additional information about downloading and installing R, see
+section [A.1.1
+(Windows)](https://rstudio-education.github.io/hopr/starting.html#windows)
+or [A.1.2
+(Mac)](https://rstudio-education.github.io/hopr/starting.html#mac) from
+[Hands-On Programming with
+R](https://rstudio-education.github.io/hopr/). Note that the R version
+should be replaced with 4.3.0.
 
 ## II. RStudio
 
@@ -66,7 +76,7 @@ directly interact with is **PG11_Lung_Microbiome_Tutorial.Rmd**. You can
 explore at your own pace, either by reviewing the code and running it
 chunk by chunk, or by creating the report for a more guided experience
 (see [Step
-VI](https://github.com/cb-42/ATS2023_PG11#vi-knit-the-tutorial-optional--5-minutes)).
+VI](https://github.com/cb-42/ATS2023_PG11#vi-knit-the-tutorial-optional--10-minutes)).
 
 ## IV. Install R Packages and Dependencies (\< 10 minutes)
 
