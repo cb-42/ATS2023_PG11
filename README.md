@@ -1,10 +1,6 @@
 
-<center>
-
 ![ATS2020](images/ats-2023-logo.png)
 <img src="images/dickson_lab_logo.png" height="170">
-
-</center>
 
 # ATS 2023 PG11: A HANDS-ON INTRODUCTION TO STUDYING THE LUNG MICROBIOME
 

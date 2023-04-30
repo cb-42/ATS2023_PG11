@@ -1,7 +1,7 @@
 ---
 title: 'PG11: A Crash Course in Microbiome Analysis'
 author: "Christopher A. Brown"
-date: "April 22, 2023 (updated)"
+date: "April 30, 2023 (updated)"
 output:
   html_document:
     code_folding: show
@@ -18,38 +18,39 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # I. Introduction
-Welcome to the coding portion of the hands-on introduction to studying the lung microbiome. In this tutorial we'll see how we can use R to perform data manipulation, modeling, visualization, and reporting as part of our analysis workflow. If you have not already done so, please download R, RStudio, and the necessary packages. See this [guide](https://github.com/cb-42/ATS2023_PG11) for more details.
+Welcome to the R coding portion of the hands-on introduction to studying the lung microbiome. In this tutorial we'll demonstrate how R can be used to perform data manipulation, modeling, visualization, and reporting as part of our analysis workflow. If you have not already done so, please download R, RStudio, and the necessary packages. See this [guide](https://github.com/cb-42/ATS2023_PG11) for more details.  
 
 ## 1.1 Why RStudio?
-There are many quality of life features that aid in making your time spent coding more efficient and reproducible. For example, many keyboard shortcuts exist in RStudio Desktop for common tasks. Navigate to Help > Keyboard Shortcuts Help, for a full list. There are many other useful features, but a full discussion of these is outside the scope of this presentation.  
+There are many quality of life features that aid in making your time spent coding more efficient and your work reproducible. For example, many keyboard shortcuts exist in RStudio Desktop for common tasks, such as executing code or adding new code chunks. For a full list of shortcuts, navigate to the top of RStudio's interface, select **Tools** then **Keyboard Shortcuts Help**. There are many other useful features, though a full discussion of these is outside the scope of this presentation.  
 
 ## 1.2 Why R Markdown?  
   - Easily combine narrative, code, statistics, and visualizations in one document.  
   - Reproducibility  
-  - Generate high quality reports in a variety of formats: pdf, html, slides. We'll walk through the creation of an html report.  
+  - Generate high quality reports in a variety of formats: PDF, HTML, slides. We'll walk through the creation of an HTML report.  
 
 ## 1.3 Navigating RStudio Desktop & an R Markdown script  
-R Markdown documents consist of narrative of text such as this sentence and code chunks such as the section directly below. Code chunks are enclosed within two pairs of three backticks. For reference a backtick is denoted by: ``` ` ```.  
+R Markdown documents consist of narrative of text such as this sentence, and code chunks such as the section directly below. Code chunks are enclosed within two pairs of three backticks. For reference a backtick is denoted by: ``` ` ```.  
 
 ```{r example_code_chunk}
 # This is an example of a comment within a code chunk.
 # The # symbol means that any text following it should not be treated as R code.
 # When R code is run in a code chunk the resulting output will be displayed inline - that is, within the document - just below the current code chunk.
-# The first line without a # symbol is actual R code, and it will be executed when this code chunk is run.
+# Any lines without a # symbol comprise actual R code and  will be executed when this code chunk is run.
 # To execute an entire code chunk: left click the green arrow in upper right of this section:
-# Alternatively, left click on the following line with R code, then use: cmd + enter (mac), ctrl + enter (pc). This will run a single line rather than the entire chunk.
+# Alternatively, left click on the following line with R code, then use: cmd + enter (mac), ctrl + enter (pc). This will run a single line rather than
+# the entire chunk.
 paste("Welcome to ATS 2023, PG11: A Crash Course in Microbiome Analysis")
 ```
 
 ## 1.4 Brief notes on R code syntax, best practices  
-These following suggested practices will aid you as you begin writing your own code. We'll also demonstrate these throughout the tutorial.  
+These following suggested practices will aid you as you begin coding. We'll also demonstrate these throughout the tutorial.  
 
   - Include comments explaining what your code does. The primary beneficiary will likely be your future self!  
-  - Use `?function_name`, such as `?ggplot` to view the help documentation for a function or library.  
-  - Give your objects meaningful, formulaic names so you can recall or determine what is inside the object. This is not always easy when you create dozens or hundreds of variables.  
+  - To view the help documentation for a function or library, use a `?` and `function_name`, such as `?ggplot`.  
+  - Give objects meaningful, formulaic names to signal or recall what is inside the object. This is not always easy when creating dozens of variables.  
   - Utilize the following syntax where appropriate: `package_name::function_name()`  
-      - The main reason to do this is to avoid calling the wrong function of the same name, as we'll see with `dplyr::select()`. It also informs users which library a function is from. 
-  - Become familiar with and make use of the pipe operator: `%>%`. This can drastically improve the efficiency of your time spent coding, and is a natural fit for data wrangling workflows.  We'll see several examples of this in action.  
+      - The main reason to do this is to avoid calling the wrong function of the same name from another package, as we'll see with `dplyr::select()`. It also informs users which library a function is from. 
+  - Become familiar with and make use of the pipe operator: `%>%`. The pipe passes the output of a function as input to another function. This can drastically improve the efficiency of your time spent coding, and is a natural fit for data wrangling workflows.  We'll see several examples of this in action.  
   
 # II. Data Acquisition & Preparation  
 We will be using 16S data resulting from mothur processing and metadata that was previously generated. All of this data is available [here](https://github.com/dicksonlunglab/mouse_lung_microbiome_variability/tree/master/mouse_lung_microbiome_heterogeneity).
@@ -65,7 +66,7 @@ library(tidyverse)      # ggplot2, dplyr, purrr, forcats, stringr... and other p
 
 # II. machine learning & analysis packages
 library(vegan)          # decostand(), metaMDS(), scores(), rda(), ordispider(), adonis()
-library(mvabund)        # mvabund(), manyglm() # This line can be uncommented when using mvabund as part of the 16S analysis.
+library(mvabund)        # mvabund(), manyglm() # Note: mvabund modeling section is commented out by default due to its time cost
 library(randomForest)   # randomForest()
 
 # III. formatting, plotting
@@ -74,57 +75,73 @@ library(RColorBrewer)   # brewer.pal() for generating custom palettes
 library(knitr)          # kable(), for displaying nicer tables in html/pdf output
 ```
 
-## 2.2 16S Data  
+## 2.2 Variable setup
+It's often beneficial to include a code chunk containing variables that store settings to be used throughout a workflow. Let's first establish a seed for reproducibility.  
+
+Secondly, we'll create a custom color palette for use in certain visualizations. It's beneficial to define and organize variables early in the workflow, as code that relies on the palette won't run if the palette hasn't been defined. Thus it is best to define the color palette before creating any visualizations.  
+
+```{r variable_setup}
+rnd_seed = 8947 # seed to be used throughout workflow where functions would otherwise yield pseudo-random output
+# for PCA ordinations; choose an 9 value pal. covering maximum number of factor levels (conditions) within variable of interest
+pcapal <- brewer.pal(9,"Set1")
+```
+
+## 2.3 16S Data  
 Next we'll bring in the 16S data from two mothur files which have the raw counts and taxonomy information.  
 
 ```{r load_16S_rawdata}
 # For ease of use, place the processed 16S data files of interest into the same directory as your current RStudio project
-# Best practices: 1) keep a separate project for each experiment or combination of experiments
+# Best practices: 
+# 1) keep a separate project for each experiment or combination of experiments
 # 2) include a data folder within the project's directory to keep source files organized; also somewhat mitigates the risk of modifying them inadvertently
+# For this tutorial, all sources files can be found in the data subfolder.
 
-# I. Read in .shared (counts of sequences assigned to OTU #s)
-# Includes basic processing with selection of OTUs > 0.1 % of the population
-otu_raw <- read.table("data/Heterogeneity.shared.txt", row.names = 2, header = TRUE, stringsAsFactors = FALSE) # read in the data, treating the first row as column names
+# I. Read in .shared file (counts of sequences assigned to OTU #s)
+# The following code includes basic processing with selection of OTUs > 0.1 % of the population
+# First read in the data, treating the first row as column names
+otu_raw <- read.table("data/Heterogeneity.shared.txt", row.names = 2, header = TRUE, stringsAsFactors = FALSE) 
 otu_trim <- otu_raw[, -c(1:2)] # drop the first 2 columns
 otu_trim <- as.matrix(otu_trim)
 otu_tmp <- vegan::decostand(otu_trim, "total") * 100 # standardization
 otu_trim[which(otu_tmp < 0.1)] <- 0 
-otu_good <- otu_trim[, which(colSums(otu_trim) > 0)] # keep only the OTUs which were present after setting quantities under 0.1 to 0
+otu_good <- otu_trim[, which(colSums(otu_trim) > 0)] # keep only OTUs remaining after setting quantities under 0.1 to 0
 
-# Trim _S from end of rownames(otu_good); note that it may be useful to keep these well identifiers in some analyses
+# Trim _S from end of rownames(otu_good); it may be useful to keep these well identifiers in some analyses
 # Also clean up extra underscores and Xs from rownames
-rownames(otu_good) <- str_remove(rownames(otu_good), "_S\\d+") %>%
+rownames(otu_good) <- str_remove(rownames(otu_good), "_S\\d+") %>% # before assigning output to rownames(), it's piped below
   str_replace_all(pattern = "[_X]+", replacement="_") %>%
   str_remove(pattern="_$")
 
 
-# It's a good idea to inspect the data regularly with tools such as dim(), str(), head(), tail(), summary()... This will help in catching errors earlier
+# It's a good idea to inspect data regularly with tools such as dim(), str(), head(), tail(), summary(), etc. This will help catch errors
 dim(otu_good) # dim(otu_good)[1] observations (samples) x dim(otu_good)[2] features (OTUs above .1% population threshold)
-otu_good[1:20, 1:10] # Examine first 20 rows, 10 columns. Try using other means for getting a glimpse of the data, such as str(otu_good).
+otu_good[1:20, 1:10] # Examine first 20 rows, 10 columns. Try using other means for glimpsing the data, such as str(otu_good).
 
 
-# II. Read in cons.taxonomy (for each OTU: contains taxonomic identifiers down to Genus level, if possible)
+# II. Read in cons.taxonomy (for each OTU: contains taxonomic identifiers down to Genus level, if classification was possible via mothur)
 # Note that OTUs are in rows here rather than columns
-# 2 imports are required due to the combination of 2 different separators  
+# 2 imports are required due to the combination of 2 different separators in the source file 
 tax1 <- read.table("data/Heterogeneity.0.03.cons.taxonomy.txt", sep = "\t", row.names = 1, header = TRUE, colClasses = c("character", "numeric", "character"))
-tax2 <- read.table("data/Heterogeneity.0.03.cons.taxonomy.txt", sep = ";", skip = 1, col.names = c("", "Phylum", "Class", "Order", "Family", "Genus", ""), stringsAsFactors = FALSE) %>% 
-  dplyr::select(-c(1, 7)) %>% # drop columns 1 and 7
-  purrr::map_df(stringr::str_replace, "\\(.*.\\)", "") %>% # this essentially trims (100) and the like
-  purrr::map_df(as.factor) # turns all present columns into factor type variables
-otu_taxonomy <- data.frame(OTU = rownames(tax1), Size = tax1[, 1], tax2, stringsAsFactors = FALSE) # combine the first and second import
+tax2 <- read.table("data/Heterogeneity.0.03.cons.taxonomy.txt", sep = ";", skip = 1, col.names = c("", "Phylum", "Class", "Order", "Family", "Genus", ""),
+                   stringsAsFactors = FALSE) %>% 
+    dplyr::select(-c(1, 7)) %>% # drop columns 1 and 7
+    purrr::map_df(stringr::str_replace, "\\(.*.\\)", "") %>% # this essentially trims '(100)' and such
+    purrr::map_df(as.factor) # turns all remaining columns into factor type variables
+otu_taxonomy <- data.frame(OTU = rownames(tax1), Size = tax1[, 1], tax2, stringsAsFactors = FALSE) # combine first and second import
 rownames(otu_taxonomy) <- rownames(tax1)
 
 # trim otu_taxonomy based on OTUs in otu_good
 otu_good_taxonomy <- otu_taxonomy[otu_taxonomy$OTU %in% colnames(otu_good), ] %>%
   droplevels() # Remove factor levels that have no values remaining due to removal
 rownames(otu_good_taxonomy) <- intersect(rownames(otu_taxonomy), colnames(otu_good))
-# otu_good_taxonomy <- as.data.frame(otu_good_taxonomy) # redundant in this case
+# otu_good_taxonomy <- as.data.frame(otu_good_taxonomy) # redundant in this case - we've already got a dataframe object
 
 dim(otu_good_taxonomy) # Displays number of rows and columns
-otu_good_taxonomy # Examine the taxonomy dataframe. The first 10 OTUs coincide with the glimpse we took of otu_good. We're leveraging the df_print: paged option to be able to look through the dataframe in an html output.
+otu_good_taxonomy # Examine the taxonomy dataframe. The first 10 OTUs coincide with the glimpse we took of otu_good. 
+# Note: we leverage the df_print: paged RMarkdown YAML option to be able to look through the dataframe in HTML output.  
 ```
 
-## 2.3 Metadata  
+## 2.4 Metadata  
 In order to group our samples by factors of interest, we'll also need metadata or environmental data. Here we illustrate how that can be done.  
 
 ```{r metadata_wrangling}
@@ -135,9 +152,11 @@ meta_df <- read.table("data/Heterogeneity.metadata.txt", sep = "\t", header = TR
                        colClasses = c("specimen" = "character")) 
 # Note that this will create factors out of all text (string) columns, except for specimen which we enforced as character type.
 # Factors are useful for 'reagent_tissue', 'litter', 'vendor', 'mouse', 'tissue_type', and 'cage' variables.
-otu_df <- data.frame(meta_df, decostand(otu_good, "total") * 100, stringsAsFactors = FALSE)
 
-# Examples of metadata creation using regular expressions (regex) in a tidyverse pipeline
+otu_df <- data.frame(meta_df, vegan::decostand(otu_good, "total") * 100, stringsAsFactors = FALSE) # standardize OTUs in our otu dataframe
+
+
+### Optional reading: Examples of metadata creation using regular expressions (regex) in a tidyverse pipeline ###
 # Note that extracting metadata from sample names is much easier if naming conventions are consistent in terms of spelling and placement
 # otu_df <- data.frame(decostand(otu_good, "total") * 100, Sample_name = row.names(otu_good), stringsAsFactors = FALSE) %>%
 #   # Create Specimen_ctrl from first string of characters prior to first "_"
@@ -150,7 +169,7 @@ otu_df <- data.frame(meta_df, decostand(otu_good, "total") * 100, stringsAsFacto
 #                                        str_detect(Sample_name, "^PerfusionPBS_") ~ "PBS",
 #                                        str_detect(Sample_name, "^WATERD|^waterC") ~ "WaterNeg",
 #                                        str_detect(Sample_name, "^mock[CD]") ~ "Mock",
-#                                        str_detect(Sample_name, "^[:alnum:]+") ~ str_extract(Sample_name, "^[:alnum:]+")), # for experimental groups, place after other steps because this regex would fill in values for controls (may or may not be ideal)
+#                                        str_detect(Sample_name, "^[:alnum:]+") ~ str_extract(Sample_name, "^[:alnum:]+")), # for experimental groups, place after other steps as this regex fills in values for controls (may or may not be ideal)
 #                                 levels = c("CR1", "CR2", "JAX1", "JAX2", "AE", "Empty", "Heparin", "HomogCtrl", "IsoCtrl", "LPS", "PBS", "WaterNeg", "Mock")
 #                 )
 #          ) %>%
@@ -174,36 +193,29 @@ otu_df <- data.frame(meta_df, decostand(otu_good, "total") * 100, stringsAsFacto
 # otu_df$Organ %>% summary() %>% sum() # ditto; 32 NAs for organs
 ```
 
-Here is a glimpse of the metadata, done by randomly sampling 10 rows:  
+Here is a glimpse of the metadata, done by randomly sampling 10 rows. Both lines need to be run at the same time for the seed to be used properly.  
 
 ```{r view_metadata_sample}
-# The following code establishes a seed for reproducibility, then randomly samples and displays 10 rows from the metadata dataframe
-set.seed(2358)
+# The following code uses our seed for reproducibility, then randomly samples and displays 10 rows from the metadata dataframe
+set.seed(rnd_seed) # feel free to explore other samples by changing the seed to another integer
 dplyr::sample_n(meta_df, 10)
-```
-
-## 2.4 Color Palette Preparation  
-We'll also create a custom color palette for use in some of our visualizations. Although we might not realize we need this until later in the analysis, it makes sense to include elements like this in the preparation part of your analysis. Apart from the organizational benefit, code that relies on the palette won't run if the palette hasn't been defined - so it is best to define the palette before creating any visualizations.  
-
-```{r pal_prep}
-# for PCA ordinations; choose an 9 that covers the maximum number of factor levels (conditions) within a variable of interest
-pcapal <- brewer.pal(9,"Set1")
 ```
 
 # III. Absolute Abundance  
 It's important to quantify the total bacterial load, typically done as one of the first steps in our analysis.   
 
 ## 3.1  ddPCR  
-We'll show an example using ddPCR, but first we need to load the data.  
+We'll show an example using ddPCR, though first we need to load the data.  
 
 ```{r abs_abundance_prep}
-# The readxl library is installed along with tidyverse, but is not loaded with library(tidyverse). We can however access the read_xlsx function without loading readxl as shown below with the readxl::read_xlsx notation.
+# The readxl library is installed along with tidyverse, but is not loaded with library(tidyverse). We can however access
+# the read_xlsx function without loading readxl as shown below with the readxl::read_xlsx notation.
 spec_abs <- readxl::read_xlsx("data/16S_EvaGreen__Heterogeneity1_Data.xlsx", sheet = 2) %>%
-  dplyr::select(Sample_name = `Sample Name`, DNA_copies_per_ul = `Copies/ul DNA`) %>% # Rename the two columns of interest, and retain only these columns
+  dplyr::select(Sample_name = `Sample Name`, DNA_copies_per_ul = `Copies/ul DNA`) %>% # Rename the two columns of interest, retain only these columns
   dplyr::filter(str_detect(Sample_name, "LUNG")) # Keep only the lung tissue samples
 
 ctrl_abs <- readxl::read_xlsx("data/16S_EvaGreen__Heterogeneity1Ctrls_030618.xlsx", sheet = 2) %>% 
-  dplyr::select(Sample_name = `Sample Name`, DNA_copies_per_ul = `Copies/ul Sample`) %>% # Rename the two columns of interest, and retain only these columns
+  dplyr::select(Sample_name = `Sample Name`, DNA_copies_per_ul = `Copies/ul Sample`) %>% # Rename the two columns of interest, retain only these columns
   drop_na() %>% # drop rows with missing values
   data.frame() # Avoid tibble indexing warning for next step (As of tibble 3.0.0)
 # Round up 0.57 DNA_copies to 1 (HomogCtrl_2)
@@ -217,7 +229,7 @@ abs_df <- full_join(spec_abs, ctrl_abs, by = c("Sample_name", "DNA_copies_per_ul
 
 # We also need to compute the averages and error
 avg_abs_df <- abs_df %>%
-  group_by(Type) %>% # Before computing an average, identify what categories are being used to aggregate by. In this case, they're contained within the Type variable we just created.
+  group_by(Type) %>% # Before computing an average, identify categories for aggregation. In this case, they're contained within the Type variable we created.
   summarize(mean_DNA_copies = mean(DNA_copies_per_ul), SEM = sqrt(var(DNA_copies_per_ul)/length(DNA_copies_per_ul)), .groups = "drop") # Create mean and SEM columns
 ```
 
@@ -229,7 +241,7 @@ ggplot(avg_abs_df, aes(x = Type, y = mean_DNA_copies, fill = Type)) + # This bri
   geom_col() + # The type of plot we want to construct. This is a wrapper for geom_bar(). See ?geom_bar for more details.
   geom_errorbar(aes(ymin = mean_DNA_copies - SEM, ymax = mean_DNA_copies + SEM, width = 0.5)) + # An errorbar layer to be added to the bars
   scale_y_log10(labels = trans_format("log10", math_format(10^.x))) + # We could convert to log10 scale prior to plotting, or we can do it on the fly
-  # geom_dotplot(data = abs_df, aes(y = DNA_copies_per_ul), binaxis = "y", dotsize = .6, stackdir = "center", stackratio = 1.5) +
+  # geom_dotplot(data = abs_df, aes(y = DNA_copies_per_ul), binaxis = "y", dotsize = .6, stackdir = "center", stackratio = 1.5) + # optional
   geom_jitter(data = abs_df, aes(y = DNA_copies_per_ul), shape = 1, size = 2) + # This adds a bit of random noise for visibility of points; shape 1 is an unfilled circle
   theme_bw() + # A minimalist theme
   labs(x = "Control or Specimen Type", y = "log10 mean_DNA_copies per µL", title = "Absolute abundance of negative controls and lung specimens") + # Rename labels
@@ -237,7 +249,7 @@ ggplot(avg_abs_df, aes(x = Type, y = mean_DNA_copies, fill = Type)) + # This bri
 ```
 
 # IV. Comparing Community Composition  
-There are several tools we can use to compare the makeup of microbial communities.  
+There are several tools and methods we can use to compare the makeup of microbial communities.  
 
 ## 4.1 Visualization techniques  
 In this subsection we will explore visualization methods including PCA ordinations, biplots, and rank abundance plots (ordered bar charts).  
@@ -246,13 +258,13 @@ In this subsection we will explore visualization methods including PCA ordinatio
 As a first step, we need to create a PCA model using only the data needed to make our comparison of interest.  
 
 #### 4.1.1.a Lung Tissue vs Negative Controls  
-It's also important to compare the distribution of bacteria present in specimens and negative controls to gauge possible contamination.  
+It's important to compare the distribution of bacteria present in specimens and negative controls to gauge possible contamination. Let's construct our first PCA model with a comparison of lung tissue and negative controls in mind.  
 
 ```{r prep_pca_con_lung}
 # Filter data to retain controls and lung tissue only
-con_lung_df <- otu_df %>% # Note: this is just one of several possible approaches to filtering to retain the correct rows.
+con_lung_df <- otu_df %>% # Note: this is one of several possible approaches to filtering to retain the correct rows.
   dplyr::filter((reagent_tissue == "Control") | (tissue_type == "Lung")) %>% # 65 specimens
-  droplevels() # Remove factor levels with no remaining observations. This prevents potential headaches in downstream data wrangling and visualizations.
+  droplevels() # Remove factor levels with no remaining observations. This prevents potential headaches in downstream data wrangling and visualization.
 rownames(con_lung_df) <- con_lung_df$specimen 
 
 # PCA of all negative controls + lung tissue
@@ -265,11 +277,11 @@ otu_con_lung_pca <- rda(otu_con_lung_hel)
 summary(otu_con_lung_pca)$cont # 0.1782 0.08601 0.06845 proportion explained by first 3 axes
 ```
 
-Next, we see the corresponding ordination (a spider plot).  
+Next, we see the corresponding ordination (a spider plot). Clear separation is evident between negative controls and lung specimens along PC1.  
 
 ```{r spider_con_lung_final, fig.height=10, fig.width=10}
-# This approach combines base R plotting functionality and vegan's ordispider function, which creates the lines connecting points to the centroids.
-# Unlike with ggplot(), these lines must all be run at once in order to produce the desired result.
+# This approach combines base R plotting functionality and vegan's ordispider function, which creates lines connecting points to the centroids.
+# Unlike with ggplot(), these lines of code must all be run at once in order to produce the desired result.
 plot(otu_con_lung_pca, type = "n", font = 2, font.lab = 2, xlab = "PC1 (17.82% Explained)", ylab = "PC2 (8.60% Explained)", main = "PCA of Lung Tissue vs Controls, colored by Type", display = "sites")
 points(otu_con_lung_pca, pch = 19, col = pcapal[as.numeric(con_lung_df$reagent_tissue)]) # pch determines the point shape and col determines the colors to be used.
 ordispider(otu_con_lung_pca, con_lung_df$reagent_tissue, label = TRUE) # Draw lines from centroids to the points belonging to each group. 
@@ -282,7 +294,7 @@ Let's walk through how we arrived at this visualization, one line at a time. The
 plot(otu_con_lung_pca, type = "n", font = 2, font.lab = 2, xlab = "PC1 (17.82% Explained)", ylab = "PC2 (8.60% Explained)", main = "PCA of Lung Tissue vs Controls, colored by Type", display = "sites")
 ```
 
-Next we'll add the points with the `points()` function. Note that we're setting the point shape and color with the `pch` and `col` parameters, respectively. We also have to run both of these lines at the same time to get the result we're after.  
+Next we'll add the points with the `points()` function. Note that we're setting the point shape and color with the `pch` and `col` parameters, respectively. We also have to run both of these lines at the same time to get the desired result.  
 
 ```{r spider_con_lung2, fig.height=10, fig.width=10}
 # Unlike with ggplot(), these lines must all be run at once in order to produce the desired result.
@@ -290,7 +302,7 @@ plot(otu_con_lung_pca, type = "n", font = 2, font.lab = 2, xlab = "PC1 (17.82% E
 points(otu_con_lung_pca, pch = 19, col = pcapal[as.numeric(con_lung_df$reagent_tissue)]) # pch determines the point shape and col determines the colors to be used.
 ```
 
-We finish the main elements of a spider plot by drawing lines between the points and centroids, done with `ordispider()`. The second argument tells the function which variable we want to use for the centroids.  
+We finish the main elements of a spider plot by drawing lines between the points and centroids, done with `ordispider()`. The second argument tells the function which dataframe variable we want to use for the centroids.  
 
 ```{r spider_con_lung3, fig.height=10, fig.width=10}
 # Unlike with ggplot(), these lines must all be run at once in order to produce the desired result.
@@ -299,7 +311,7 @@ points(otu_con_lung_pca, pch = 19, col = pcapal[as.numeric(con_lung_df$reagent_t
 ordispider(otu_con_lung_pca, con_lung_df$reagent_tissue, label = TRUE) # Draw lines from centroids to the points belonging to each group.
 ```
 
-Lastly, we add a legend to arrive at the final figure.    
+Lastly, we add a legend to arrive at the final figure.  
 
 ```{r spider_con_lung4, fig.height=10, fig.width=10}
 # This approach combines base R plotting functionality and vegan's ordispider function, which creates the lines connecting points to the centroids.
@@ -322,15 +334,14 @@ legend("topright", levels(con_lung_df$reagent_tissue), pch = 19, col = pcapal, t
 ```
 
 #### 4.1.1.b Biplot  
-A biplot can help us understand which microbial features may be more associated with certain specimens, specimen groups, or principal components.  
+A biplot can help us understand associations between certain microbial features, specimens, specimen groups, and/or principal components. In a biplot, the specimens are represented as points (scores) whereas the features are represented as vectors (loadings).  
 
 ```{r biplot_con_lung, fig.height=10, fig.width=10, warning=FALSE}
 # Consider whether rownames should be shown, if so they may need to be truncated for visibility
-
-# biplot(otu_con_lung_pca, type = "t") # This will result in a lot of warnings, and though it generates the plot it's not recommended
+# biplot(otu_con_lung_pca, type = "t") # This can result in many warnings if warning=FALSE is not specified above, though it generates the plot it's not recommended
 
 # Address warnings with the following function, (hides warnings from 0-length arrows)
-# Alternatively, set warning = FALSE in the code chunk; does not seem to work on macs
+# Alternatively, set warning=FALSE in the code chunk; does not seem to work on macs in older R/package versions 
 quiet_biplot <- quietly(function(ordiobj, ...) {
   biplot(ordiobj, ...)
 })
@@ -342,24 +353,24 @@ quiet_biplot <- quietly(function(ordiobj, ...) {
 biplot_results <- quiet_biplot(otu_con_lung_pca, type = "t", font = 2, font.lab = 2, xlab = "PC1 (17.82% Explained)", ylab = "PC2 (8.60% Explained)",
                                main = "Biplot: Lung Tissue vs Control samples, colored by Type", display = "species", xlim = c(-0.8, 0.62)) # Note, plot zoom for xlim/ylim may need to be adjusted due to changing the display parameter
 points(otu_con_lung_pca, pch = 19, col = pcapal[c(5,2)][as.numeric(con_lung_df$reagent_tissue)]) # color palette adjusted to conflict less with biplot arrows
-legend("topright", levels(con_lung_df$reagent_tissue), pch = 19, col = pcapal[c(5,2)], title = "Type") # adjust legend colpal to match points
+legend("topright", levels(con_lung_df$reagent_tissue), pch = 19, col = pcapal[c(5,2)], title = "Type") # adjust legend color pal to match points
 
 # Another example for replacing specimen labels with C or T
- # biplot(prcomp(otu_con_lung_hel), xlabs=ifelse(str_detect(con_lung_df$reagent_tissue, "Control"), "C", "T")) # arrow.len = 0 will also remove warnings, at the cost of losing the arrowhead
+# biplot(prcomp(otu_con_lung_hel), xlabs=ifelse(str_detect(con_lung_df$reagent_tissue, "Control"), "C", "T")) # arrow.len = 0 will also remove warnings, at the cost of losing the arrowhead
 ```
 
 #### 4.1.1.c Lung Tissue: Charles River vs Jackson Labs  
-In this experiment, we compared murine specimens from Charles River and Jackson Labs.    
+In our original experiment, we compared murine specimens from Charles River and Jackson Labs. Let's create a second PCA model to contrast lung specimens across vendors.  
 
 ```{r prep_pca_lung}
 # Filter data to retain lung tissue only
-otu_lung <- dplyr::filter(otu_df, tissue_type == "Lung") %>%
+otu_lung_df <- dplyr::filter(otu_df, tissue_type == "Lung") %>%
   droplevels() # remove levels corresponding to data that is no longer present due to filtering
-rownames(otu_lung) <- otu_lung$specimen
+rownames(otu_lung_df) <- otu_lung_df$specimen
 
 # PCA of lung tissue specimens
 # Keep only the rows of interest for unstandardized data.
-pca_lung_mat <- otu_good[otu_lung$specimen, ]
+pca_lung_mat <- otu_good[otu_lung_df$specimen, ]
 otu_lung_hel <- decostand(pca_lung_mat, "hellinger") # Standardize use OTU columns only
 otu_lung_pca <- rda(otu_lung_hel)
 
@@ -371,13 +382,13 @@ summary(otu_lung_pca)$cont # 0.1458 0.10677 0.06776 proportion explained by firs
 # This approach combines base R plotting functionality and vegan's ordispider function, which creates the lines connecting points to the centroids.
 # Unlike with ggplot(), these lines must all be run at once in order to produce the desired result.
 plot(otu_lung_pca, type = "n", font = 2, font.lab = 2, xlab = "PC1 (14.58% Explained)", ylab = "PC2 (10.68% Explained)", main = "PCA of Specimen Origin, colored by Vendor", display = "sites")
-points(otu_lung_pca, pch = 19, col = pcapal[as.numeric(otu_lung$vendor)]) # pch determines the point shape and col determines the colors to be used.
-ordispider(otu_lung_pca, otu_lung$vendor, label = TRUE) # Draw lines from centroids to the points belonging to each group.
-legend("topright", levels(otu_lung$vendor), pch = 19, col = pcapal, title = "Vendor") # Format and add details to legends
+points(otu_lung_pca, pch = 19, col = pcapal[as.numeric(otu_lung_df$vendor)]) # pch determines the point shape and col determines the colors to be used.
+ordispider(otu_lung_pca, otu_lung_df$vendor, label = TRUE) # Draw lines from centroids to the points belonging to each group.
+legend("topright", levels(otu_lung_df$vendor), pch = 19, col = pcapal, title = "Vendor") # Format and add details to legends
 ```
 
 #### 4.1.1.d Biplot  
-Next, we'll examine another biplot.  
+The PCA ordination of lung samples by vendor again shows clear separation of specimens by PC1 (though remember that this PC1 differs from the lung vs control PC1). Next, we'll examine another biplot using only lung specimens. Optional: uncomment the other biplot code to examine alternative approaches. Interestingly, we see that Otu0018 and Otu00052 are clearly negatively associated along PC2. This is in contrast to the negative control vs lung tissue biplot where these features had similar angles and lengths along PC1 and PC2.  
 
 ```{r biplot_lung, fig.height=10, fig.width=10, warning=FALSE}
 # Consider whether rownames should be shown, if so they may need to be truncated for visibility
@@ -385,10 +396,15 @@ Next, we'll examine another biplot.
 # biplot(otu_lung_pca, type = "t") # This will result in a lot of warnings, and though it generates the plot it's not recommended
 
 # Address warnings with the following function, (hides warnings from 0-length arrows)
-# Alternatively, set warning = FALSE in the code chunk; does not seem to work on macs
+# Alternatively, set warning=FALSE in the code chunk; does not seem to work on macs
 
 # see function that was created previously
-biplot_results <- quiet_biplot(otu_lung_pca, type = "t")
+# biplot_results <- quiet_biplot(otu_lung_pca, type = "t")
+
+biplot_results <- quiet_biplot(otu_lung_pca, type = "t", font = 2, font.lab = 2, xlab = "PC1 (14.58% Explained)", ylab = "PC2 (10.68% Explained)",
+                               main = "Biplot: Specimen Origin, colored by Vendor", display = "species", xlim = c(-0.8, 0.62)) # Note, plot zoom for xlim/ylim may need to be adjusted due to changing the display parameter
+points(otu_lung_pca, pch = 19, col = pcapal[c(5,2)][as.numeric(otu_lung_df$vendor)]) # color palette adjusted to conflict less with biplot arrows
+legend("topright", levels(otu_lung_df$vendor), pch = 19, col = pcapal[c(5,2)], title = "Vendor")
 
 # example for replacing specimen labels with CR or JL
 # biplot(prcomp(otu_lung_hel), xlabs=ifelse(str_detect(otu_lung$vendor, "Charles_River"), "CR", "JL")) # arrow.len = 0 will also remove warnings, at the cost of losing the arrowhead
@@ -575,7 +591,7 @@ The following is an example of a PERMANOVA implementation using `vegan::adonis2(
 
 ```{r adonis}
 # PERMANOVA
-set.seed(8947) # setting a seed allows for reproducibility. Both of these lines need to be run together for it to work.
+set.seed(rnd_seed) # setting a seed allows for reproducibility. Both of these lines need to be run together for it to work.
 # adonis(otu_lung_hel~otu_lung$vendor, method="euclidean", permutations = 10000)$aov.tab # 9.999e-05 *** # Note that adonis() will soon be deprecated
 adonis2(otu_lung_hel~otu_lung$vendor, method="euclidean", permutations = 10000) # 9.999e-05 ***
 # The left hand side of the formula is the transformed data, and the right hand side is a vector (column) container the group identifiers of interest.
@@ -679,7 +695,7 @@ rf_df <- dplyr::filter(fam_df, tissue_type == "Lung") %>%
   droplevels()
   
 a <- Sys.time()
-set.seed(3462)
+set.seed(3462) # adjust
 # Setting the importance parameter to TRUE allows us to obtain the variable importance info we're interested in.
 rf_vendors <- randomForest(vendor ~ ., data = rf_df, importance = TRUE) 
 b <- Sys.time()
@@ -694,7 +710,7 @@ In order to better gauge the robustness of these findings, let's run the random 
 ```{r many_rf, cache = TRUE}
 a <- Sys.time()
 nforest <- 100
-set.seed(3462)
+set.seed(3462) # adjust
 rf_list <- vector("list", nforest) # Initialize a list to store the randomForests
 for (i in seq_along(1:nforest)) { # Loops nforest number of times, creating a model and saving it into the list each time.
     rf_list[[i]] <- randomForest(vendor ~ ., data = rf_df, importance = TRUE) 
@@ -879,7 +895,7 @@ bc_tissue_vend_df <- bc_df %>%
 # Plot within vendor tissue-tissue BC comparisons
 ggplot(bc_tissue_vend_df, aes(x = vendor, y = Mean_BC, fill = vendor)) + 
   geom_boxplot() + # alternatively, use a geom_col and an errorbar layer
-  geom_point(size=1, alpha=0.5, position = position_jitter(width = 0.175, seed = 8237)) + # add 'noisy' points for specimens (adjust width to improve visibility on discrete x-axis)
+  geom_point(size=1, alpha=0.5, position = position_jitter(width = 0.175, seed = 8237)) + #adjust  # add 'noisy' points for specimens (adjust width to improve visibility on discrete x-axis)
   theme_bw() + # A minimalist theme
   labs(y = "Mean Bray-Curtis", title = "Bray-Curtis Dissimilarity: Tissue samples by vendor") + # Adjust axis label and title
   facet_grid(. ~ tissue_type) +

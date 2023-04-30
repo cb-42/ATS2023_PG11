@@ -6,11 +6,7 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-<center>
-
 ![ATS2020](images/ats-2023-logo.png) <img src="images/dickson_lab_logo.png" height="170">
-
-</center>
 
 # ATS 2023 PG11: A HANDS-ON INTRODUCTION TO STUDYING THE LUNG MICROBIOME
 This is a guide for acquiring the materials for **ATS 2023 PG11: A HANDS-ON INTRODUCTION TO STUDYING THE LUNG MICROBIOME** which is based on the [**Dickson Lab SOP for Analysis of 16S rRNA Gene Amplicon Data**](https://github.com/cb-42/Dickson_16S_SOP). This repository includes data and source code for a tutorial analysis of the lung microbiome.  
