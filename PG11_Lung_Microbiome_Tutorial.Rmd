@@ -766,6 +766,9 @@ ggplot(fi_df, aes(x = Feature, y = fi_df[, 2])) +
   scale_x_discrete(limits = rev(levels(fi_df$Feature)))
 ```
 
+#### 5.1.2.b Regression  
+Optional: See Supplemental (9.1.3) for Random Forest Regression.  
+
 # VI. Community Diversity
 In this section we'll explore several measures of community diversity and examine how they can be used within our analyses.  
 
@@ -775,7 +778,8 @@ First, we'll look at the diversity within specimens. We are interested in measur
   * **Evenness** - how evenly distributed are the taxa?  
   * **Dominance** - what is the relative abundance of the dominant (largest %) taxa?  
 
-To measure α-diversity, we'll compute the [Shannon diversity](https://en.wikipedia.org/wiki/Diversity_index) using the `diversity()` function, which calculates the shannon index by default. Then we'll select the observations of interest and compute summary statistics. The formula for deriving the Shannon index is shown below:  
+### 6.1.1 Shannon diversity & dominance  
+To measure α-diversity, we'll compute the [Shannon diversity](https://en.wikipedia.org/wiki/Diversity_index) using the `diversity()` function, which calculates the Shannon index by default. Then we'll select the observations of interest and compute summary statistics. The formula for deriving the Shannon index is shown below:  
 
 $$H' = -\sum_{i=1}^{R}p_{i} \ln p_{i}$$
 
@@ -815,7 +819,7 @@ We can also test the difference between the means of these groups for significan
 # T-Test for the two vendors. This approach would also work if there were 3 or more groups.
 TukeyHSD(aov(shan_lung$Shannon ~ shan_lung$vendor))
 ```
-
+### 6.1.2 Rarefaction curves  
 Rarefaction curves can also be used to explore α-diversity. First, the data needs to be prepared.  
 
 ```{r rarefy_prep, warning=FALSE, cache=TRUE}
@@ -829,7 +833,7 @@ rarefy_agg <- rarefy(dplyr::select(otu_raw, -label, -numOtus), sample = 1:1000) 
   group_by(vendor, Sample_Seq_Num) %>%
   summarize(Mean_Species = mean(Unique_Species), SEM = sqrt(var(Unique_Species)/length(Unique_Species)), .groups = "drop") # Create summary statistics by vendor (negative controls are considered 'None')
 
-# write.table(rarefy_raw,file = "rarefy.txt") # Create intermediate table
+# write.table(rarefy_raw,file = "rarefy.txt") # Output the table if desired
 ```
 
 To visualize the rarefaction curves, we'll use three `geom_line` layers as follows:
@@ -845,25 +849,26 @@ ggplot(rarefy_agg, aes(x = Sample_Seq_Num, y = Mean_Species, color = vendor)) +
   labs(x = "Number of Sequences Sampled", y = "Unique Species", title = "Rarefaction curves for lung specimens and negative controls")
 ```
 
-Relative abundance plots can also be used as a means of exploring α-diversity.
+### 6.1.3 Rank abundance plots  
+As we've already seen, RA plots can also be used as a means of exploring α-diversity.  
 
 ## 6.2 𝛽-diversity: across specimens  
-Next we'll examine diversity across specimens.    
+Next we'll examine diversity across specimens.  
 
-Revisiting our PCA ordination of lung specimens by vendor:
+First, we revisit the PCA ordination of lung specimens by vendor to recall global dissimilarity between vendors:  
 
 ```{r betadiv, fig.height=10, fig.width=10}
 # This approach combines base R plotting functionality and vegan's ordispider function, which creates the lines connecting points to the centroids.
 # Unlike with ggplot(), these lines must all be run at once in order to produce the desired result.
 plot(otu_lung_pca, type = "n", font = 2, font.lab = 2, xlab = "PC1 (14.58% Explained)", ylab = "PC2 (10.68% Explained)", main = "PCA of Specimen Origin, colored by Vendor", display = "sites")
-points(otu_lung_pca, pch = 19, col = pcapal[as.numeric(otu_lung$vendor)]) # pch determines the point shape and col determines the colors to be used.
-ordispider(otu_lung_pca, otu_lung$vendor, label = TRUE) # Draw lines from centroids to the points belonging to each group.
-legend("topright", levels(otu_lung$vendor), pch = 19, col = pcapal, title = "Vendor") # Format and add details to legends
+points(otu_lung_pca, pch = 19, col = pcapal[as.numeric(otu_lung_df$vendor)]) # pch determines the point shape and col determines the colors to be used.
+ordispider(otu_lung_pca, otu_lung_df$vendor, label = TRUE) # Draw lines from centroids to the points belonging to each group.
+legend("topright", levels(otu_lung_df$vendor), pch = 19, col = pcapal, title = "Vendor") # Format and add details to legends
 ```
 
-### Bray-Curtis
+### 6.2.1 Bray-Curtis  
 
-[Bray-Curtis dissimilarity](https://en.wikipedia.org/wiki/Bray%E2%80%93Curtis_dissimilarity) is a statistic used to quantify the compositional dissimilarity between two different sites, based on counts at each site. A score of 1 represents complete dissimilarity between two specimens, meaning no OTUs are shared between the specimens, for example. On the other hand, a score of 0 signifies complete similarity. The following formula provides the index of dissimilarity, though we'll use `vegdist` to handle computation:
+[Bray-Curtis dissimilarity](https://en.wikipedia.org/wiki/Bray%E2%80%93Curtis_dissimilarity) is a statistic used to quantify the compositional dissimilarity between two different sites, based on counts at each site. A score of 1 represents complete dissimilarity between two specimens, meaning no OTUs are shared between the specimens. On the other hand, a score of 0 signifies complete similarity. The following formula provides the index of dissimilarity, though we'll use `vegdist()` to handle computation:
 
 $$BC_{IJ} = 1 - \frac{2C_{IJ}}{S_{i} + S_{J}}$$
 
@@ -889,7 +894,7 @@ sub_df <- otu_df %>% # First, subset to keep rows of interest for the Bray-Curti
 
 bc_df <- sub_df %>%
   dplyr::select(contains("Otu")) %>% # retain OTU columns only
-  vegdist(diag = TRUE, upper = TRUE) %>% # method = "bray" by default
+  vegan::vegdist(diag = TRUE, upper = TRUE) %>% # method = "bray" by default
   as.matrix() %>%
   as.data.frame(row.names = sub_df$specimen) %>%
   setNames(sub_df$specimen) %>% # add column names
@@ -908,11 +913,12 @@ bc_tissue_vend_df <- bc_df %>%
   summarize(Mean_BC = mean(BC), SEM_BC = sqrt(var(BC)/length(BC)), .groups = "drop")
 ```
 
+Next, plot within vendor tissue-tissue BC comparisons.  
+
 ```{r tissue_vendor_bc_viz,fig.height=8, fig.width=12}
-# Plot within vendor tissue-tissue BC comparisons
 ggplot(bc_tissue_vend_df, aes(x = vendor, y = Mean_BC, fill = vendor)) + 
   geom_boxplot() + # alternatively, use a geom_col and an errorbar layer
-  geom_point(size=1, alpha=0.5, position = position_jitter(width = 0.175, seed = 8237)) + #adjust  # add 'noisy' points for specimens (adjust width to improve visibility on discrete x-axis)
+  geom_point(size=1, alpha=0.5, position = position_jitter(width = 0.175, seed = rnd_seed)) + # add 'noisy' points for specimens (adjust width to improve visibility on discrete x-axis)
   theme_bw() + # A minimalist theme
   labs(y = "Mean Bray-Curtis", title = "Bray-Curtis Dissimilarity: Tissue samples by vendor") + # Adjust axis label and title
   facet_grid(. ~ tissue_type) +
@@ -921,17 +927,17 @@ ggplot(bc_tissue_vend_df, aes(x = vendor, y = Mean_BC, fill = vendor)) +
 ```
 
 # VII. Reporting  
-Usually it's not enough that you've generated statistics or created visualizations. You also need to be able to share these results. Fortunately, there are a variety of ways to do this.
+Usually it's not enough to generate statistics or create visualizations. We also need to be able to share these results. Fortunately, there are a variety of ways to do this.  
 
 ## 7.1 Exporting a dataframe  
 Here is an example of exporting `otu_lung` to a .csv file, which can then be opened in Excel or your spreadsheet editor of choice. Note that depending on your locale (whether , or ; is the expected separator), you may need to use `write.csv2()` to obtain the desired results. As an additional exercise, try changing the name of the dataframe or the name of the output file.  
 
 ```{r csv_export}
 # This will save a new file called otu_lung.csv in the current working directory
-write_csv(otu_lung, "otu_lung.csv")
+write_csv(otu_lung_df, "otu_lung.csv")
 ```
 
-The following code chunk creates dataframes aggregated to various taxonomic levels and saves them as .csv files in the project directory. Bonus: instead of using the following loop to write these tables to files, they could be added to the global environment instead.  
+The following code chunk creates dataframes aggregated to various taxonomic levels and saves them as .csv files in the project directory. Bonus: instead of using the following loop to write these tables to files, they could be added to the global environment instead, for use in further analysis.  
 
 ```{r multi_export}
 # Create prep dataframe to use at each stage of taxonomic aggregation
@@ -950,17 +956,18 @@ for(taxon in c("Phylum", "Class", "Order", "Family")) {
     write_csv(paste0("CRJL_", tolower(taxon), "_table.csv")) # writes to .csv
     # Note, above line can commented and line below uncommented to add these dataframes to the global env
     # assign(x = paste0(substr(tolower(taxon), start = 1, stop = 3), "_df_ex"), pos = 1) # assigns values to df_names in curent environment (presumed to be global env)
+    # Change the "_df_ex" if another naming scheme is preferred
 }
 ```
 
 ## 7.2 Saving a plot  
 Next, we'll save a plot. There are several methods for doing this and one approach utilizing `ggsave` is shown in the following code chunk.  
 
-Note that we will also have access to a folder (in this case: **PG11_Lung_Microbiome_Tutorial_files/figure-html/**) with all of the plot images used in rendering the final report after finishing step 7.3, so these images could be retrieved from this folder after the knitting process is completed. If your report generates many figures, this might be a good way to go.  
+Note that there will also be a figure-html folder (in this case: **PG11_Lung_Microbiome_Tutorial_files/figure-html/**) containing all of the plots created through the code chunks in this RMarkdown file. These are used in rendering the final report after finishing step 7.3, and these images could be retrieved from this folder after the knitting process is completed. If your report generates many figures, this might be a good way to go for non-reporting needs.  
 
-Additionally, right clicking on an image displayed inline (within PG11_Lung_Microbiome_Tutorial.Rmd) will bring up an option to save the image.  
+Additionally, while within `PG11_Lung_Microbiome_Tutorial.Rmd` and clicking 'Show in New Window' above a plot, then right clicking on the subsequent image displayed will bring up an option to save the image.  
 
-Yet another way to save a plot is to first save a plot to an object, for instance **p**, then type **p** followed by return in the console. Finally, navigate to the plot tab in RStudio and click the export drop down to reveal several methods for exporting the visualization that was just created from running **p**.  
+Yet another way to save a plot is to first save a plot to an object, for instance `p`, then type `p` followed by return in the console. Finally, navigate to the plot tab in RStudio and click the export drop down to reveal several methods for exporting the visualization that was just created.  
 
 ```{r ggsave}
 # The optional `path` parameter can be added onto the filename, used to denote a different directory. Use ?ggsave to check out other parameters
@@ -968,9 +975,7 @@ ggsave(filename = "vendor_relabund.pdf", plot = ra_vend_plot, width = 30, height
 ```
 
 ## 7.3 Generating a report: Knitting  
-If all goes well, we should also be able to create a report from the narrative and code contained within this R Markdown document that we've been working on. Click the Knit button (look for the blue ball of yarn) near the top of RStudio interface to generate the default report type, which is set to HTML for this document. An HTML document containing this report will be created in the current working directory and it will display as a popup window or in the RStudio Viewer pane. We can easily change the type of file that is created by altering the output type in the header at the top of this document.  
-
-Note that there will also be a figure-html folder containing all of the plots created through the code chunks in this document. For example, if the Rmd file (the one we're using) is called PG11_Lung_Microbiome_Tutorial, then the figures would be located in: PG11_Lung_Microbiome_Tutorial_files/figure-html.  
+If all goes well, we should also be able to create a report from the narrative and code contained within this R Markdown document that we've been working on. Click the **Knit** button (look for the blue ball of yarn with knitting needle) near the top of RStudio interface to generate the default report type, which is set to HTML for this document. An HTML document containing this report will be created in the current working directory and it will also be displayed in a popup window or in the RStudio Viewer pane. We can easily change the type of file that is created by altering the output type in the header at the top of this document.  
 
 ## 7.4 Cage Challenge  
 Congratulations! You've made it to the end of this introduction to lung microbiome analyses. Now that you've seen the basics, demonstrated between specimens and controls as well as within lung specimens, can you create additional analyses using the `cage` variable? Feel free to explore explore this and examine other possible relationships in the data on your own.  
